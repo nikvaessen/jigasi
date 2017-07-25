@@ -52,8 +52,8 @@ public interface TranscriptionService
      * @throws UnsupportedOperationException when this service does not support
      * fragmented audio speech-to-text
      */
-    void sentSingleRequest(TranscriptionRequest request,
-              Consumer<TranscriptionResult> resultConsumer)
+    void sendSingleRequest(TranscriptionRequest request,
+                           Consumer<TranscriptionResult> resultConsumer)
         throws UnsupportedOperationException;
 
     /**
