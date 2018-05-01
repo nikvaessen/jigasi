@@ -37,7 +37,7 @@ It is possible to install Jigasi along with Jitsi Meet using our [quick install 
  ```
  ./jigasi.sh --domain=meet.jit.si --subdomain=callcontrol --secret=topsecret
  ```
-After Jigasi is started it will register as XMPP component under the 'callcontrol' subdomain. In Jitsi Meet application -> config.js -> hosts.call_control must be set to 'callcontrol.meet.jit.si'. This will enable SIP calls in Jitsi Meet.
+After Jigasi is started, it will register as an XMPP component under the 'callcontrol' subdomain. In Jitsi Meet application -> config.js -> hosts.call_control must be set to 'callcontrol.meet.jit.si'. This will enable SIP calls in Jitsi Meet.
 
 Supported arguments:
  * --domain: specifies the XMPP domain to use.
@@ -56,7 +56,7 @@ Jigasi registers as a SIP client and can be called or be used by Jitsi Meet to m
 Outgoing calls
 ==============
 
-To call someone from Jitsi Meet application, Jigasi must be configured and started like described in the 'Install and run' section. This will cause the telephone icon to appear in the toolbar which will popup a call dialog on click.
+To call someone from the Jitsi Meet application, Jigasi must be configured and started as described in the 'Install and run' section. This will cause the telephone icon to appear in the toolbar, and which will popup a call dialog on click.
 
 Incoming calls
 ==============
@@ -76,15 +76,15 @@ while a conference is ongoing as well as serving a complete transcription
 after the conference is over. This can be done by using the SIP dial button and 
 using the the URI `jitsi_meet_transcribe`. 
 Currently Jigasi can send speech-to-text results to
-the chat of a Jitsi Meet room as either plain text or JSON. If it's send in JSON,
+the chat of a Jitsi Meet room as either plain text or JSON. If it's sent in JSON,
 Jitsi Meet will provide subtitles in the left corner of the video, while plain text
 will just be posted in the chat. Jigasi will also provide a link to where the final, 
 complete transcript will be served when it enters the room.
 
-For jigasi to act as a transcriber, it sends the audio of all participants in the
+For Jigasi to act as a transcriber, it sends the audio of all participants in the
 room to an external speech-to-text service. Currently only the [Google Cloud speech-to-text API](https://cloud.google.com/speech/) is supported.
 It is required to install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/)
-on the machine running Jigasi. To install on a regular debian/ubuntu environment:
+on the machine running Jigasi. To install on a regular Debian/Ubuntu environment:
 
 ```
 export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
