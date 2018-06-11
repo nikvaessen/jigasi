@@ -19,6 +19,7 @@ package org.jitsi.jigasi.transcription;
 
 import net.java.sip.communicator.service.protocol.*;
 import org.jitsi.impl.neomedia.device.*;
+import org.jitsi.jigasi.*;
 import org.jitsi.jigasi.transcription.action.*;
 import org.jitsi.util.*;
 
@@ -313,6 +314,9 @@ public class Transcriber
             if (logger.isDebugEnabled())
                 logger.debug("Transcriber is now transcribing");
 
+            JigasiBundleActivator.getDataDogClient()
+                .increment("start", "transcription");
+
             this.state = State.TRANSCRIBING;
             this.executorService = Executors.newSingleThreadExecutor();
 
@@ -346,6 +350,9 @@ public class Transcriber
         {
             if (logger.isDebugEnabled())
                 logger.debug("Transcriber is now finishing up");
+
+            JigasiBundleActivator.getDataDogClient()
+                .increment("stop", "transcription");
 
             this.state = State.FINISHING_UP;
             this.executorService.shutdown();
