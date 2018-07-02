@@ -17,6 +17,7 @@
  */
 package org.jitsi.jigasi.transcription;
 
+import com.timgroup.statsd.*;
 import net.java.sip.communicator.service.protocol.*;
 import org.jitsi.impl.neomedia.device.*;
 import org.jitsi.jigasi.*;
@@ -42,6 +43,21 @@ public class Transcriber
      * The logger of this class
      */
     private final static Logger logger = Logger.getLogger(Transcriber.class);
+
+    /**
+     * The tag used for pushing statistics to Datadog.
+     */
+    public final static String DD_TAG = "transcription";
+
+    /**
+     * Datadog ascept for starting transcribing
+     */
+    private final static String DD_ASPECT_START = "start";
+
+    /**
+     * Datadog ascept for ending transcribing
+     */
+    private final static String DD_ASCEPT_STOP = "end";
 
     /**
      * The states the transcriber can be in. The Transcriber
@@ -314,8 +330,11 @@ public class Transcriber
             if (logger.isDebugEnabled())
                 logger.debug("Transcriber is now transcribing");
 
-            JigasiBundleActivator.getDataDogClient()
-                .increment("start", "transcription");
+            StatsDClient dClient = JigasiBundleActivator.getDataDogClient();
+            if(dClient != null)
+            {
+                dClient.increment(DD_ASPECT_START, DD_TAG);
+            }
 
             this.state = State.TRANSCRIBING;
             this.executorService = Executors.newSingleThreadExecutor();
@@ -351,8 +370,11 @@ public class Transcriber
             if (logger.isDebugEnabled())
                 logger.debug("Transcriber is now finishing up");
 
-            JigasiBundleActivator.getDataDogClient()
-                .increment("stop", "transcription");
+            StatsDClient dClient = JigasiBundleActivator.getDataDogClient();
+            if(dClient != null)
+            {
+                dClient.increment(DD_ASCEPT_STOP, DD_TAG);
+            }
 
             this.state = State.FINISHING_UP;
             this.executorService.shutdown();
@@ -366,7 +388,7 @@ public class Transcriber
         }
         else
         {
-            logger.warn("Trying to stop Transcriber while it is" +
+            logger.warn("Trying to stop Transcriber while it is " +
                             "already stopped");
         }
     }
@@ -385,7 +407,7 @@ public class Transcriber
         }
         else
         {
-            logger.warn("Trying to notify Transcriber for a while it is" +
+            logger.warn("Trying to notify Transcriber for a while it is " +
                 "already stopped");
         }
     }
