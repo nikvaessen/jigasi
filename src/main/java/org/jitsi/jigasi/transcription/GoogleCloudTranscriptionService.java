@@ -19,7 +19,7 @@ package org.jitsi.jigasi.transcription;
 
 import com.google.api.gax.rpc.*;
 import com.google.auth.oauth2.*;
-import com.google.cloud.speech.v1.*;
+import com.google.cloud.speech.v1p1beta1.*;
 import com.google.protobuf.*;
 import org.jitsi.jigasi.transcription.action.*;
 import org.jitsi.util.*;
@@ -167,7 +167,7 @@ public class GoogleCloudTranscriptionService
      * Whether the Google Cloud API only listens for a single utterance
      * or continuous to listen once an utterance is over
      */
-    private final static boolean SINGLE_UTTERANCE_ONLY = true;
+    private final static boolean SINGLE_UTTERANCE_ONLY = false;
 
     /**
      * The amount of ms after which a StreamingRecognize session will be closed
@@ -213,6 +213,9 @@ public class GoogleCloudTranscriptionService
                     "has unexpected" +
                     "encoding");
         }
+
+        // set the model to use
+        builder.setModel("video");
 
         // set the Language tag
         String languageTag = request.getLocale().toLanguageTag();
@@ -715,6 +718,7 @@ public class GoogleCloudTranscriptionService
         {
             if (logger.isDebugEnabled())
                 logger.debug("Received a StreamingRecognizeResponse");
+
             if(message.hasError())
             {
                 // it is expected to get an error if the 60 seconds are exceeded
@@ -808,6 +812,15 @@ public class GoogleCloudTranscriptionService
          */
         private void handleResult(StreamingRecognitionResult result)
         {
+            StringBuilder t = new StringBuilder();
+            result.getAlternativesList().forEach(a -> {
+                t.append(a.getTranscript());
+                t.append(" ");
+            });
+
+            System.out.printf("INCOMING_RESULT: t=%s, is_init: %b, is_final=%s, stab=%f%n",
+                t.toString(), result.isInitialized(), result.getIsFinal(), result.getStability());
+
             List<SpeechRecognitionAlternative> alternatives
                 = result.getAlternativesList();
 
@@ -857,6 +870,9 @@ public class GoogleCloudTranscriptionService
          */
         private void sent(TranscriptionResult result)
         {
+            System.out.println("TRANSCRIPTION: " + result.getAlternatives().iterator().next().getTranscription());
+
+
             for(TranscriptionListener listener : requestManager.getListeners())
             {
                 listener.notify(result);
