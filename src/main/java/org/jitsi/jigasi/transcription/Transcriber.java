@@ -45,19 +45,14 @@ public class Transcriber
     private final static Logger logger = Logger.getLogger(Transcriber.class);
 
     /**
-     * The tag used for pushing statistics to Datadog.
+     * Datadog aspect for starting transcribing
      */
-    public final static String DD_TAG = "transcription";
+    private final static String DD_ASPECT_START = "start_transcriber";
 
     /**
-     * Datadog ascept for starting transcribing
+     * Datadog aspect for ending transcribing
      */
-    private final static String DD_ASPECT_START = "start";
-
-    /**
-     * Datadog ascept for ending transcribing
-     */
-    private final static String DD_ASCEPT_STOP = "end";
+    private final static String DD_ASPECT_STOP = "stop_transcriber";
 
     /**
      * The states the transcriber can be in. The Transcriber
@@ -333,7 +328,11 @@ public class Transcriber
             StatsDClient dClient = JigasiBundleActivator.getDataDogClient();
             if(dClient != null)
             {
-                dClient.increment(DD_ASPECT_START, DD_TAG);
+                dClient.increment(DD_ASPECT_START);
+                if(logger.isDebugEnabled())
+                {
+                    logger.debug("thrown stat: " + DD_ASPECT_START);
+                }
             }
 
             this.state = State.TRANSCRIBING;
@@ -373,7 +372,11 @@ public class Transcriber
             StatsDClient dClient = JigasiBundleActivator.getDataDogClient();
             if(dClient != null)
             {
-                dClient.increment(DD_ASCEPT_STOP, DD_TAG);
+                dClient.increment(DD_ASPECT_STOP);
+                if(logger.isDebugEnabled())
+                {
+                    logger.debug("thrown stat: " + DD_ASPECT_STOP);
+                }
             }
 
             this.state = State.FINISHING_UP;
