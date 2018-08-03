@@ -20,6 +20,8 @@ package org.jitsi.jigasi.transcription;
 import net.java.sip.communicator.service.protocol.*;
 import org.json.*;
 
+import java.io.*;
+import java.nio.file.*;
 import java.time.*;
 import java.util.*;
 
@@ -224,10 +226,31 @@ public class LocalJsonTranscriptHandler
         return new JSONFormatter();
     }
 
+
+    private Path jsonMessageDebugLog = Paths.get("/var/log/jitsi/jigasi-json.log");
+
     @Override
     public void publish(ChatRoom room, TranscriptionResult result)
     {
         JSONObject eventObject = createTranscriptionJSONObject(result);
+
+        try(PrintWriter debugWriter = new PrintWriter(
+            new FileOutputStream(jsonMessageDebugLog.toString(), true), true))
+        {
+            if(!jsonMessageDebugLog.toFile().exists())
+            {
+                System.out.println("creating " + jsonMessageDebugLog);
+                jsonMessageDebugLog.toFile().mkdirs();
+                jsonMessageDebugLog.toFile().createNewFile();
+            }
+
+            System.out.println(System.currentTimeMillis());
+            debugWriter.println(eventObject.toString());
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
 
         super.sendJsonMessage(room, eventObject);
     }
