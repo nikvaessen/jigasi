@@ -31,6 +31,7 @@ import org.jxmpp.jid.*;
 import org.jxmpp.jid.impl.*;
 import org.jxmpp.stringprep.*;
 
+import javax.media.*;
 import java.util.*;
 
 /**
@@ -145,7 +146,7 @@ public class TranscriptionGatewaySession
 
         // If the transcription service is not correctly configured, there is no
         // point in continuing this session, so end it immediately
-        if(!service.isConfiguredProperly())
+        if (!service.isConfiguredProperly())
         {
             logger.warn("TranscriptionService is not properly configured");
             sendMessageToRoom("Transcriber is not properly " +
@@ -157,13 +158,15 @@ public class TranscriptionGatewaySession
 
         // We create a MediaWareCallConference whose MediaDevice
         // will get the get all of the audio and video packets
-        jvbConferenceCall.setConference(new MediaAwareCallConference()
+        try
+        {
+            jvbConferenceCall.setConference(new MediaAwareCallConference()
             {
                 @Override
                 public MediaDevice getDefaultDevice(MediaType mediaType,
                                                     MediaUseCase useCase)
                 {
-                    if(MediaType.AUDIO.equals(mediaType))
+                    if (MediaType.AUDIO.equals(mediaType))
                     {
                         return transcriber.getMediaDevice();
                     }
@@ -172,6 +175,13 @@ public class TranscriptionGatewaySession
                     return super.getDefaultDevice(mediaType, useCase);
                 }
             });
+        }
+        catch (ClockStartedError e)
+        {
+            e.printStackTrace();
+
+            return new RuntimeException(e.getMessage());
+        }
 
         // adds all TranscriptionEventListener among TranscriptResultPublishers
         for (TranscriptionResultPublisher pub
@@ -307,6 +317,8 @@ public class TranscriptionGatewaySession
         {
             new Thread(() ->
             {
+                logger.debug("started a PRESENCE_UPDATE wait thread to check " +
+                    "whether stopping with transcription is desired");
                 try
                 {
                     Thread.sleep(PRESENCE_UPDATE_WAIT_UNTIL_LEAVE_DURATION);

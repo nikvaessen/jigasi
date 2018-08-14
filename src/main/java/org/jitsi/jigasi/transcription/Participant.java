@@ -95,6 +95,14 @@ public class Participant
         = "https://abotars.jitsi.net/meeple/%s";
 
     /**
+     * The standard source language when it's not set.
+     * TODO: fix use-case for when source language is undefinened but other
+     * people want transcriptions in a language other than english.
+     */
+    private static Locale DEFAULT_SOURCE_LANGUAGE_LOCALE
+        = Locale.forLanguageTag("en-US");
+
+    /**
      * The {@link Transcriber} which owns this {@link Participant}.
      */
     private Transcriber transcriber;
@@ -138,7 +146,7 @@ public class Participant
     /**
      * Set default language code as en-US for this participant's locale
      */
-    private Locale sourceLanguageLocale = Locale.forLanguageTag("en-US");
+    private Locale sourceLanguageLocale = null;
 
     /**
      * The String representing the language code for required translation.
@@ -164,7 +172,7 @@ public class Participant
      */
     public String getName()
     {
-        if(chatMember == null)
+        if (chatMember == null)
         {
             return UNKNOWN_NAME;
         }
@@ -183,11 +191,12 @@ public class Participant
 
     /**
      * Returns participant email if any.
+     *
      * @return participant email if any.
      */
     public String getEmail()
     {
-        if(chatMember == null)
+        if (chatMember == null)
         {
             return null;
         }
@@ -260,17 +269,17 @@ public class Participant
      */
     public String getIdentityUserName()
     {
-        if(!(chatMember instanceof ChatRoomMemberJabberImpl))
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
         {
             return null;
         }
 
         IdentityPacketExtension ipe
             = getIdentityExtensionOrNull(
-                ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
+            ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getUserName():
+            ipe.getUserName() :
             null;
     }
 
@@ -281,17 +290,17 @@ public class Participant
      */
     public String getIdentityUserId()
     {
-        if(!(chatMember instanceof ChatRoomMemberJabberImpl))
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
         {
             return null;
         }
 
         IdentityPacketExtension ipe
             = getIdentityExtensionOrNull(
-                ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
+            ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getUserId():
+            ipe.getUserId() :
             null;
     }
 
@@ -302,17 +311,17 @@ public class Participant
      */
     public String getIdentityGroupId()
     {
-        if(!(chatMember instanceof ChatRoomMemberJabberImpl))
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
         {
             return null;
         }
 
         IdentityPacketExtension ipe
             = getIdentityExtensionOrNull(
-                ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
+            ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getGroupId():
+            ipe.getGroupId() :
             null;
     }
 
@@ -349,7 +358,7 @@ public class Participant
      */
     public long getSSRC()
     {
-        if(confMember == null)
+        if (confMember == null)
         {
             return DEFAULT_UNKNOWN_AUDIO_SSRC;
         }
@@ -365,7 +374,7 @@ public class Participant
     public String getSourceLanguage()
     {
         return sourceLanguageLocale == null ?
-            null :
+            DEFAULT_SOURCE_LANGUAGE_LOCALE.getLanguage() :
             sourceLanguageLocale.getLanguage();
     }
 
@@ -493,7 +502,7 @@ public class Participant
      * buffered and sent to the transcription once enough has been stored
      *
      * @param buffer a buffer which is expected to contain a single packet
-     *               of audio of this participant
+     * of audio of this participant
      */
     void giveBuffer(javax.media.Buffer buffer)
     {
@@ -558,7 +567,7 @@ public class Participant
         }
 
         int spaceLeft = buffer.limit() - buffer.position();
-        if(spaceLeft < EXPECTED_AUDIO_LENGTH)
+        if (spaceLeft < EXPECTED_AUDIO_LENGTH)
         {
             sendRequest(buffer.array());
             buffer.clear();
@@ -578,8 +587,10 @@ public class Participant
         {
             TranscriptionRequest request
                 = new TranscriptionRequest(audio,
-                                           audioFormat,
-                                           sourceLanguageLocale);
+                audioFormat,
+                sourceLanguageLocale == null ?
+                    DEFAULT_SOURCE_LANGUAGE_LOCALE :
+                    sourceLanguageLocale);
 
             if (session != null && !session.ended())
             {
@@ -598,14 +609,15 @@ public class Participant
                 // recognition is not supported by the
                 // TranscriptionService
                 transcriber.getTranscriptionService().sendSingleRequest(
-                        request,
-                        this::notify);
+                    request,
+                    this::notify);
             }
         });
     }
 
     /**
      * Returns the transcriber instance that created this participant.
+     *
      * @return the transcriber instance that created this participant.
      */
     public Transcriber getTranscriber()
