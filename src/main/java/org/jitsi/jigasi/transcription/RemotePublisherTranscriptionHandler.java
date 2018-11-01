@@ -76,7 +76,7 @@ public class RemotePublisherTranscriptionHandler
 
         for (String url : urls)
         {
-            Util.postJSON(url, eventObject);
+            UtilTran.postJSON(url, eventObject);
         }
     }
 
@@ -104,7 +104,7 @@ public class RemotePublisherTranscriptionHandler
 
         for (String url : urls)
         {
-            Util.postJSON(url, object);
+            UtilTran.postJSON(url, object);
         }
     }
 }

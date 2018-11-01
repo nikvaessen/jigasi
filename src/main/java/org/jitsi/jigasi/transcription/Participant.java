@@ -22,11 +22,13 @@ import net.java.sip.communicator.impl.protocol.jabber.extensions.jitsimeet.*;
 import net.java.sip.communicator.service.protocol.*;
 import org.jitsi.jigasi.util.Util;
 import org.jitsi.util.*;
+import org.jitsi.webrtcvadwrapper.*;
 import org.jivesoftware.smack.packet.*;
 
 import javax.media.format.*;
 import java.nio.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * This class describes a participant in a conference whose
@@ -61,6 +63,18 @@ public class Participant
      * locally before being send to the TranscriptionService
      */
     private static final int BUFFER_SIZE = EXPECTED_AUDIO_LENGTH * 25;
+
+    private static final boolean USE_VAD = false;
+
+    private static final int VAD_MODE = 1;
+
+    private static final int VAD_AUDIO_HZ = 48000;
+
+    private static final int VAD_SEGMENT_SIZE_MS = 20;
+
+    private static final int VAD_WINDOW_SIZE_MS = 200;
+
+    private static final int VAD_THRESHOLD = 8;
 
     /**
      * Whether we should buffer locally before sending
@@ -144,6 +158,18 @@ public class Participant
      * The String representing the language code for required translation.
      */
     private String translationLanguage = null;
+
+    /**
+     * The {@link SpeechDetector} object used to detect silent audio
+     */
+    private SpeechDetector speechDetector
+        = new SpeechDetector(VAD_AUDIO_HZ,
+                             VAD_MODE,
+                             VAD_SEGMENT_SIZE_MS,
+                             VAD_WINDOW_SIZE_MS,
+                             VAD_THRESHOLD);
+
+    private Executor vadExecutor = Executors.newSingleThreadExecutor();
 
     /**
      * Create a participant with a given name and audio stream
@@ -507,6 +533,17 @@ public class Participant
         }
 
         byte[] audio = (byte[]) buffer.getData();
+
+        if(USE_VAD)
+        {
+            vadExecutor.execute(() ->
+            {
+                speechDetector.nextSegment(
+                    UtilTran.convertByteArrayTo16bitIntArrays(audio));
+                boolean speech = speechDetector.isSpeech();
+                System.out.println("is speech: " + speech);
+            });
+        }
 
         if (USE_LOCAL_BUFFER)
         {

@@ -169,7 +169,7 @@ public class GoogleCloudTranscriptionService
      * Whether the Google Cloud API only listens for a single utterance
      * or continuous to listen once an utterance is over
      */
-    private final static boolean SINGLE_UTTERANCE_ONLY = false;
+    private final static boolean SINGLE_UTTERANCE_ONLY = true;
 
     /**
      * The amount of ms after which a StreamingRecognize session will be closed
@@ -217,7 +217,7 @@ public class GoogleCloudTranscriptionService
         }
 
         // set the model to use
-        builder.setModel("video");
+//        builder.setModel("video");
 
         // set the Language tag
         String languageTag = request.getLocale().toLanguageTag();
@@ -549,8 +549,8 @@ public class GoogleCloudTranscriptionService
          * The ApiStreamObserver which will send new audio request to be
          * transcribed
          */
-        private ApiStreamObserver<StreamingRecognizeRequest>
-            currentRequestObserver;
+        private RequestResponseApiStreamingObserver<StreamingRecognizeRequest,
+            StreamingRecognizeResponse> currentRequestObserver;
 
         /**
          * Lock used to access the currentRequestObserver
@@ -591,16 +591,16 @@ public class GoogleCloudTranscriptionService
          * @param config the configuration of the session
          * @return the ApiStreamObserver
          */
-        private ApiStreamObserver<StreamingRecognizeRequest> createObserver(
+        private RequestResponseApiStreamingObserver<StreamingRecognizeRequest,
+            StreamingRecognizeResponse> createObserver(
             RecognitionConfig config)
         {
             // Each observer gets its own responseObserver to be able to
             // to get an unique ID
-            ResponseApiStreamingObserver<StreamingRecognizeResponse>
-                responseObserver =
-                new ResponseApiStreamingObserver<StreamingRecognizeResponse>(
-                    this,
-                    config.getLanguageCode());
+            RequestResponseApiStreamingObserver<StreamingRecognizeRequest, StreamingRecognizeResponse>
+                requestResponseObserver
+                = new RequestResponseApiStreamingObserver<>(this,
+                                                            config.getLanguageCode());
 
             // StreamingRecognitionConfig which will hold information
             // about the streaming session, including the RecognitionConfig
@@ -620,12 +620,11 @@ public class GoogleCloudTranscriptionService
             // An ApiObserver which will be used to send all requests
             // The responses will be delivered to the responseObserver
             // which is already created
-            ApiStreamObserver<StreamingRecognizeRequest> requestObserver
-                = callable.bidiStreamingCall(responseObserver);
+            callable.call(requestResponseObserver);
 
             // Sent the first request which needs to **only** contain the
             // StreamingRecognitionConfig
-            requestObserver.onNext(
+            requestResponseObserver.queueRequest(
                 StreamingRecognizeRequest.newBuilder()
                     .setStreamingConfig(streamingRecognitionConfig)
                     .build());
@@ -637,7 +636,7 @@ public class GoogleCloudTranscriptionService
                                                 STREAMING_SESSION_TIMEOUT_MS);
             terminatingSessionThread.start();
 
-            return requestObserver;
+            return requestResponseObserver;
         }
 
         /**
@@ -673,7 +672,7 @@ public class GoogleCloudTranscriptionService
 
                 costLogger.increment(request.getDurationInMs());
 
-                currentRequestObserver.onNext(
+                currentRequestObserver.queueRequest(
                     StreamingRecognizeRequest.newBuilder()
                         .setAudioContent(audioBytes)
                         .build());
@@ -726,7 +725,7 @@ public class GoogleCloudTranscriptionService
                     if (logger.isDebugEnabled())
                         logger.debug("Terminated current session");
 
-                    currentRequestObserver.onCompleted();
+                    currentRequestObserver.close();
                     currentRequestObserver = null;
 
                     costLogger.sessionEnded();
@@ -744,18 +743,29 @@ public class GoogleCloudTranscriptionService
     }
 
     /**
-     * This ResponseApiStreamingObserver is used in the
+     * This RequestResponseApiStreamingObserver is used in the
      * StreamingRecognitionSession to retrieve incoming
      * StreamingRecognizeResponses when the Google Cloud API has received
-     * enough audio packets to successfully transcribe
+     * enough audio packets to successfully transcribe.
      *
-     * @param <T> This observer will only ever be used for instances of
-     *            StreamingRecognizeResponse
+     * It is also used to send new StreamingRecongizeRequests.
+     *
+     * @param <Res> This observer will only ever be used for instances of
+     *              StreamingRecognizeRequest
+     * @param <Resp> This observer will only ever be used for instances of
+     *               StreamingRecognizeResponse
      */
-    private static class ResponseApiStreamingObserver
-        <T extends StreamingRecognizeResponse>
-        implements ApiStreamObserver<T>
+    private static class RequestResponseApiStreamingObserver
+        <Res extends StreamingRecognizeRequest,
+        Resp extends StreamingRecognizeResponse>
+        implements BidiStreamObserver<Res, Resp>
     {
+        /**
+         * The ClientStream which will request Requests, which will then
+         * be forwarded to the server.
+         */
+        private Queue<Res> requestQueue ;
+
         /**
          * The manager which is used to send new audio requests. Should be
          * notified when a final result comes in to be able to start a new
@@ -774,23 +784,62 @@ public class GoogleCloudTranscriptionService
          */
         private UUID messageID;
 
+        boolean shouldClose;
+
         /**
-         * Create a ResponseApiStreamingObserver which listens for transcription
+         * Create a RequestResponseApiStreamingObserver which listens for transcription
          * results
          *
          * @param manager the manager of requests
          */
-        ResponseApiStreamingObserver(RequestApiStreamObserverManager manager,
-                                     String languageTag)
+        RequestResponseApiStreamingObserver(
+            RequestApiStreamObserverManager manager,
+            String languageTag)
         {
             this.requestManager = manager;
             this.languageTag = languageTag;
 
             messageID = UUID.randomUUID();
+            requestQueue = new LinkedList<>();
+        }
+
+        public void queueRequest(Res req){
+            requestQueue.add(req);
+        }
+
+        public void close()
+        {
+            shouldClose = true;
         }
 
         @Override
-        public void onNext(StreamingRecognizeResponse message)
+        public void onReady(ClientStream<Res> clientStream)
+        {
+            System.out.println("received a client stream");
+            if (clientStream.isSendReady())
+            {
+                System.out.println("client is now ready");
+                if (shouldClose)
+                {
+                    clientStream.closeSend();
+                    System.out.println("closed the stream");
+                }
+                else
+                {
+                    clientStream.send(requestQueue.poll());
+                    System.out.println("send the first message in queue");
+                }
+            }
+        }
+
+        @Override
+        public void onStart(StreamController streamController)
+        {
+            System.out.println("started");
+        }
+
+        @Override
+        public void onResponse(StreamingRecognizeResponse message)
         {
             if (logger.isDebugEnabled())
                 logger.debug("Received a StreamingRecognizeResponse");
@@ -805,7 +854,7 @@ public class GoogleCloudTranscriptionService
                 if (logger.isDebugEnabled())
                     logger.debug(
                         "Received error from StreamingRecognizeResponse: "
-                        + message.getError().getMessage());
+                            + message.getError().getMessage());
                 requestManager.terminateCurrentSession();
                 return;
             }
@@ -850,7 +899,7 @@ public class GoogleCloudTranscriptionService
             if(alternatives.isEmpty())
             {
                 logger.warn("Received a list of alternatives which" +
-                    " was empty");
+                                " was empty");
                 requestManager.terminateCurrentSession();
                 return;
             }
@@ -858,6 +907,22 @@ public class GoogleCloudTranscriptionService
             handleResult(finalResult);
 
             requestManager.terminateCurrentSession();
+        }
+
+        @Override
+        public void onError(Throwable t)
+        {
+            logger.warn("Received an error from the Google Cloud API", t);
+            requestManager.terminateCurrentSession();
+        }
+
+        @Override
+        public void onComplete()
+        {
+            for(TranscriptionListener listener : requestManager.getListeners())
+            {
+                listener.completed();
+            }
         }
 
         /**
@@ -876,7 +941,7 @@ public class GoogleCloudTranscriptionService
         {
             return message.getSpeechEventType().
                 equals(StreamingRecognizeResponse.SpeechEventType.
-                    END_OF_SINGLE_UTTERANCE);
+                           END_OF_SINGLE_UTTERANCE);
         }
 
         /**
@@ -920,23 +985,7 @@ public class GoogleCloudTranscriptionService
                         alternative.getConfidence()));
             }
 
-            sent(transcriptionResult);
-        }
-
-        @Override
-        public void onError(Throwable t)
-        {
-            logger.warn("Received an error from the Google Cloud API", t);
-            requestManager.terminateCurrentSession();
-        }
-
-        @Override
-        public void onCompleted()
-        {
-            for(TranscriptionListener listener : requestManager.getListeners())
-            {
-                listener.completed();
-            }
+            propagateTranscriptionResult(transcriptionResult);
         }
 
         /**
@@ -944,10 +993,9 @@ public class GoogleCloudTranscriptionService
          *
          * @param result the result to sent
          */
-        private void sent(TranscriptionResult result)
+        private void propagateTranscriptionResult(TranscriptionResult result)
         {
             System.out.println("TRANSCRIPTION: " + result.getAlternatives().iterator().next().getTranscription());
-
 
             for(TranscriptionListener listener : requestManager.getListeners())
             {

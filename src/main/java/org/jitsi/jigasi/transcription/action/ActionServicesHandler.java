@@ -220,7 +220,7 @@ public class ActionServicesHandler
                 }
 
                 // post to action url
-                Util.postJSON(handler.getUrl(), jsonResult);
+                UtilTran.postJSON(handler.getUrl(), jsonResult);
             }
         }
     }
@@ -253,7 +253,7 @@ public class ActionServicesHandler
 
         for (ActionHandler handler : actionSources.remove(roomName))
         {
-            Util.postJSON(handler.getUrl(), object);
+            UtilTran.postJSON(handler.getUrl(), object);
         }
     }
 }

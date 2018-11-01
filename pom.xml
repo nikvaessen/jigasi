@@ -32,7 +32,7 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-speech</artifactId>
-      <version>0.53.0-alpha</version>
+      <version>0.68.0-beta</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -187,6 +187,11 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>jitsi-stats</artifactId>
       <version>1.0-20171003.152041-3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jitsi</groupId>
+      <artifactId>jitsi-webrtcvadwrapper</artifactId>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <!--
